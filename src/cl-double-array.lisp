@@ -2,6 +2,7 @@
   (:use :cl)
   (:export :double-array
            :build-double-array
+           :do-common-prefix-search
            :common-prefix-search
            :complete))
 (in-package :cl-double-array)
@@ -137,21 +138,41 @@
     ;(print check)(terpri)
     double-array))
 
+(defmacro do-common-prefix-search
+    ((double-array string &key (start 0) end node subseq i) &body body)
+  (let ((double-array-sym (gensym "DOUBLE-ARRAY"))
+        (string-sym (gensym "STRING"))
+        (start-sym (gensym "START"))
+        (bindings '()))
+    (when node
+      (push `(,node n) bindings))
+    (when subseq
+      (push `(,subseq (subseq ,string-sym ,start-sym (1+ i))) bindings))
+    (when i
+      (push `(,i (1+ i)) bindings))
+    `(let* ((,double-array-sym ,double-array)
+            (,string-sym ,string)
+            (,start-sym ,start)
+            (dictionary (double-array-dictionary ,double-array-sym))
+            (base (double-array-base ,double-array-sym))
+            (check (double-array-check ,double-array-sym)))
+       (loop
+         with n fixnum = 1
+         until (zerop n)
+         for i fixnum from ,start-sym below (or ,end (length ,string-sym))
+         for id fixnum = (or (encode-char dictionary (schar ,string-sym i))
+                             (return))
+         for m = (+ n id)
+         while (= n (aref check m))
+         do (setf n (aref base m))
+         when (= n (aref check n))
+         do (let ,bindings ,@body)))))
+
 (defun common-prefix-search (double-array string &optional (start 0) end)
-  (let* ((dictionary (double-array-dictionary double-array))
-         (base (double-array-base double-array))
-         (check (double-array-check double-array)))
-    (loop
-      with n fixnum = 1
-      until (zerop n)
-      for i fixnum from start below (or end (length string))
-      for id fixnum = (encode-char dictionary (schar string i))
-      while id
-      for m = (+ n id)
-      while (= n (aref check m))
-      do (setf n (aref base m))
-      when (= n (aref check n))
-      collect (subseq string start (1+ i)))))
+  (let ((result '()))
+    (do-common-prefix-search (double-array string :start start :end end :subseq subseq)
+      (push subseq result))
+    (nreverse result)))
 
 ; common-prefix-search-all
 
