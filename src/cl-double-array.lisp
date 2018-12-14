@@ -2,7 +2,8 @@
   (:use :cl)
   (:export :double-array
            :build-double-array
-           :common-prefix-search))
+           :common-prefix-search
+           :complete))
 (in-package :cl-double-array)
 
 (defstruct dictionary
@@ -41,6 +42,10 @@
             for id in ids
             collect (aref id-object id))
           'string))
+
+(declaim (inline decode-char))
+(defun decode-char (dictionary id)
+  (aref (dictionary-id-object dictionary) id))
 
 
 (defstruct double-array
@@ -130,14 +135,14 @@
     ;(print check)(terpri)
     double-array))
 
-(defun common-prefix-search (double-array string &optional (start 0))
+(defun common-prefix-search (double-array string &optional (start 0) end)
   (let* ((dictionary (double-array-dictionary double-array))
          (base (double-array-base double-array))
          (check (double-array-check double-array)))
     (loop
       with n = 1
       until (zerop n)
-      for i from start below (length string)
+      for i from start below (or end (length string))
       for id = (encode-char dictionary (char string i))
       while id
       for m = (+ n id)
@@ -147,3 +152,34 @@
       collect (subseq string start (1+ i)))))
 
 ; common-prefix-search-all
+
+(defun complete (double-array string &optional (start 0) end)
+  (let* ((dictionary (double-array-dictionary double-array))
+         (base (double-array-base double-array))
+         (check (double-array-check double-array))
+         (n 1)
+         (dictionary-size (dictionary-size dictionary)))
+    (loop
+      until (zerop n)
+      for i from start below (or end (length string))
+      for id = (or (encode-char dictionary (char string i))
+                   (return-from complete '()))
+      for m = (+ n id)
+      unless (= n (aref check m))
+      do (return-from complete '())
+      do (setf n (aref base m)))
+    (labels ((f (n)
+               (nconc (when (= n (aref check n))
+                        (list (list)))
+                      (loop
+                        for i from 1 below dictionary-size
+                        for m = (+ n i)
+                        when (= n (aref check m))
+                        append (loop
+                                 with char = (decode-char dictionary i)
+                                 for x in (f (aref base m))
+                                 collect (cons char x))))))
+      (loop
+        with prefix = (subseq string start end)
+        for chars in (f n)
+        collect (format nil "~a~{~a~}" prefix chars)))))

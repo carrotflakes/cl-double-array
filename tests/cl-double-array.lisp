@@ -15,28 +15,40 @@
   (let ((double-array (build-double-array string-list)))
 
     (is (format nil "~{~a~^,~}" (common-prefix-search double-array "a"))
-        "a"
-        :test #'string=)
+        "a")
 
     (is (format nil "~{~a~^,~}" (common-prefix-search double-array "abc"))
-        "a"
-        :test #'string=)
+        "a")
 
     (is (format nil "~{~a~^,~}" (common-prefix-search double-array "teddy"))
-        "ted"
-        :test #'string=)
+        "ted")
 
     (is (format nil "~{~a~^,~}" (common-prefix-search double-array "inn"))
-        "i,in,inn"
-        :test #'string=)
+        "i,in,inn")
 
     (is (format nil "~{~a~^,~}" (common-prefix-search double-array "india"))
-        "i,in"
-        :test #'string=)
+        "i,in")
   
     (is (format nil "~{~a~^,~}" (common-prefix-search double-array "internet!"))
-        "i,in,int,inter,internet"
-        :test #'string=)))
+        "i,in,int,inter,internet")
+
+    (is (format nil "~{~a~^,~}" (common-prefix-search double-array "x"))
+        "")
+
+    (is (format nil "~{~a~^,~}" (sort (complete double-array "t") #'string<))
+        "tea,ted,ten,to")
+
+    (is (format nil "~{~a~^,~}" (sort (complete double-array "in") #'string<))
+        "in,inn,int,inter,internet")
+
+    (is (format nil "~{~a~^,~}" (sort (complete double-array "an") #'string<))
+        "")
+
+    (is (format nil "~{~a~^,~}" (sort (complete double-array "x") #'string<))
+        "")
+
+    (is (format nil "~{~a~^,~}" (sort (complete double-array "") #'string<))
+        (format nil "~{~a~^,~}" (sort (copy-list string-list) #'string<)))))
 
 (f string-list)
 (f (cons "" string-list))
