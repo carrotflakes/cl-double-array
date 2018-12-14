@@ -61,10 +61,12 @@
                      :adjustable t
                      :fill-pointer 0)))
 
+(defvar *buffer-increment-step* 128)
+
 (declaim (inline set-value))
 (defun set-value (array i element)
   (unless (< i (array-total-size array))
-    (adjust-array array (1+ i)))
+    (adjust-array array (+ (array-total-size array) *buffer-increment-step*)))
   (setf (aref array i) element))
 
 (declaim (inline get-value))
@@ -140,10 +142,10 @@
          (base (double-array-base double-array))
          (check (double-array-check double-array)))
     (loop
-      with n = 1
+      with n fixnum = 1
       until (zerop n)
-      for i from start below (or end (length string))
-      for id = (encode-char dictionary (char string i))
+      for i fixnum from start below (or end (length string))
+      for id fixnum = (encode-char dictionary (schar string i))
       while id
       for m = (+ n id)
       while (= n (aref check m))
