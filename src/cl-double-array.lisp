@@ -70,17 +70,16 @@
 
 (defun lists-to-tree (lists)
   (let ((tree ()))
-    (loop
-      for list in lists
-      if (null list)
-      do (push '(0) tree)
-      else
-      do (if (eq (caar tree) (car list))
-             (push (cdr list) (cdar tree))
-             (push `(,(car list) ,(cdr list)) tree)))
-    (loop
-      for node in tree
-      do (setf (cdr node) (lists-to-tree (cdr node))))
+    (dolist (list lists)
+      (cond
+        ((null list)
+         (push '(0) tree))
+        ((eq (caar tree) (car list))
+         (push (cdr list) (cdar tree)))
+        (t
+         (push `(,(car list) ,(cdr list)) tree))))
+    (dolist (node tree)
+      (setf (cdr node) (lists-to-tree (cdr node))))
     (nreverse tree)))
 
 (defun build-double-array (string-list)
@@ -93,12 +92,10 @@
                            :initial-element 0
                            :adjustable t
                            :fill-pointer 0))
-         (string-list (copy-list string-list)))
-    (sort string-list #'string<)
+         (string-list (sort (copy-list string-list) #'string<)))
     (initialize-dictionary dictionary)
     (dolist (string string-list)
       (register dictionary (coerce string 'list)))
-    (set-value used 2 1)
     (let* ((encoded-list (loop
                            for string in string-list
                            collect (encode dictionary string)))
@@ -112,20 +109,15 @@
                             return m)))
                    (set-value base n m)
                    (set-value used m 1)
-                   (loop
-                     for node in tree
-                     for id = (car node)
-                     do (set-value check (+ m id) m))
-                   (loop
-                     for node in tree
-                     for id = (car node)
-                     do (f (+ m id) (cdr node)))))
+                   (dolist (node tree)
+                     (set-value check (+ m (car node)) m))
+                   (dolist (node tree)
+                     (f (+ m (car node)) (cdr node)))))
                (check (m tree)
-                 (not (loop
-                        for node in tree
-                        for id = (car node)
-                        unless (= (get-value check (+ m id)) 0)
-                        return t))))
+                 (dolist (node tree)
+                   (unless (= (get-value check (+ m (car node))) 0)
+                     (return-from check nil)))
+                 t))
         ;(print encoded-list)
         (f 1 tree)))
     ; padding for range-check-less indexing
