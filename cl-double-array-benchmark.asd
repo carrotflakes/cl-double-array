@@ -7,16 +7,12 @@
   Author: carrotflakes (carrotflakes@gmail.com)
 |#
 
-(defsystem "cl-double-array"
+(defsystem "cl-double-array-benchmark"
   :version "0.1.0"
   :author "carrotflakes"
   :license "LLGPL"
-  :depends-on ()
-  :components ((:module "src"
+  :depends-on ("cl-double-array")
+  :components ((:module "bench"
                 :components
                 ((:file "cl-double-array"))))
-  :description "common-prefix-search by double array"
-  :long-description
-  #.(read-file-string
-     (subpathname *load-pathname* "README.markdown"))
-  :in-order-to ((test-op (test-op "cl-double-array-test"))))
+  :description "benchmark for cl-double-array")
