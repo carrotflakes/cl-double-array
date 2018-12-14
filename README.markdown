@@ -1,5 +1,7 @@
 # cl-double-array
 
+cl-double-array provides `common-prefix-search`.
+
 ## Usage
 
 ``` lisp
@@ -9,6 +11,9 @@
 
 (common-prefix-search double-array "internet!")
 ; => ("i" "in" "int" "inter" "internet")
+
+(complete double-array "int")
+; => ("int" "inter" "internet") ; Random order
 
 ```
 
