@@ -1,7 +1,8 @@
 (defpackage cl-double-array
   (:nicknames :clda)
   (:use :cl)
-  (:export :double-array
+  (:export :*array-element-type-unsigned-byte*
+           :double-array
            :build-double-array
            :do-common-prefix-search
            :common-prefix-search
@@ -50,15 +51,17 @@
   (aref (dictionary-id-object dictionary) id))
 
 
+(defparameter *array-element-type-unsigned-byte* 32)
+
 (defstruct double-array
   (dictionary (make-dictionary))
   (base (make-array 2
-                    :element-type '(unsigned-byte 32)
+                    :element-type `(unsigned-byte ,*array-element-type-unsigned-byte*)
                     :initial-element 0
                     :adjustable t
                     :fill-pointer 0))
   (check (make-array 2
-                     :element-type '(unsigned-byte 32)
+                     :element-type `(unsigned-byte ,*array-element-type-unsigned-byte*)
                      :initial-element 0
                      :adjustable t
                      :fill-pointer 0)))
