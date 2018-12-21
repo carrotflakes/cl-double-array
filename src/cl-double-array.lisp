@@ -1,4 +1,5 @@
 (defpackage cl-double-array
+  (:nicknames :clda)
   (:use :cl)
   (:export :double-array
            :build-double-array
