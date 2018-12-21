@@ -53,12 +53,12 @@
 (defstruct double-array
   (dictionary (make-dictionary))
   (base (make-array 2
-                    :element-type '(unsigned-byte 16)
+                    :element-type '(unsigned-byte 32)
                     :initial-element 0
                     :adjustable t
                     :fill-pointer 0))
   (check (make-array 2
-                     :element-type '(unsigned-byte 16)
+                     :element-type '(unsigned-byte 32)
                      :initial-element 0
                      :adjustable t
                      :fill-pointer 0)))
@@ -68,7 +68,7 @@
 (declaim (inline set-value))
 (defun set-value (array i element)
   (unless (< i (array-total-size array))
-    (adjust-array array (+ (array-total-size array) *buffer-increment-step*)))
+    (adjust-array array (+ i *buffer-increment-step*)))
   (setf (aref array i) element))
 
 (declaim (inline get-value))
