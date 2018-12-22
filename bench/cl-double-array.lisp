@@ -23,6 +23,9 @@
   (format t "build-double-array:~%")
   (let* ((words (make-words n))
          (double-array (time (build-double-array words))))
+    (format t "array-length base: ~a, check: ~a~%"
+            (fill-pointer (clda::double-array-base double-array))
+            (fill-pointer (clda::double-array-check double-array)))
     (format t "common-prefix-search * 100,000:~%")
     (time (dotimes (i 100000)
             (common-prefix-search double-array (car (last words)))))))

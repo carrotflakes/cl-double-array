@@ -53,15 +53,18 @@
 
 (defparameter *array-element-type-unsigned-byte* 32)
 
+(defun element-type ()
+  `(unsigned-byte ,*array-element-type-unsigned-byte*))
+
 (defstruct double-array
   (dictionary (make-dictionary))
   (base (make-array 2
-                    :element-type `(unsigned-byte ,*array-element-type-unsigned-byte*)
+                    :element-type (element-type)
                     :initial-element 0
                     :adjustable t
                     :fill-pointer 0))
   (check (make-array 2
-                     :element-type `(unsigned-byte ,*array-element-type-unsigned-byte*)
+                     :element-type (element-type)
                      :initial-element 0
                      :adjustable t
                      :fill-pointer 0)))
@@ -95,12 +98,18 @@
     (nreverse tree)))
 
 (defun build-double-array (string-list)
+  (declare (optimize (speed 3) (space 0) (safety 0)))
   (let* ((double-array (make-double-array))
          (dictionary (double-array-dictionary double-array))
          (base (double-array-base double-array))
          (check (double-array-check double-array))
          (used (make-array 2
-                           :element-type 'bit
+                           :element-type `bit
+                           :initial-element 0
+                           :adjustable t
+                           :fill-pointer 0))
+         (skip (make-array 2
+                           :element-type (element-type)
                            :initial-element 0
                            :adjustable t
                            :fill-pointer 0))
@@ -116,20 +125,31 @@
                  (unless tree
                    (return-from f))
                  (let ((m (loop
-                            for m from 1
+                            with first-id = (caar tree)
+                            with m = (skip 1 first-id)
                             when (and (= (get-value used m) 0) (check m tree))
-                            return m)))
+                            return m
+                            do (setf m (skip (1+ m) first-id)))))
                    (set-value base n m)
                    (set-value used m 1)
                    (dolist (node tree)
-                     (set-value check (+ m (car node)) m))
+                     (let ((o (+ m (car node))))
+                       (set-value check o m)
+                       (set-value skip o (1+ (get-value skip (1+ o))))))
                    (dolist (node tree)
                      (f (+ m (car node)) (cdr node)))))
                (check (m tree)
                  (dolist (node tree)
                    (unless (= (get-value check (+ m (car node))) 0)
                      (return-from check nil)))
-                 t))
+                 t)
+               (skip (n id &aux (m n))
+                 (loop
+                   for offset = (get-value skip (+ m id))
+                   until (zerop offset)
+                   do (incf m offset))
+                 (set-value skip (+ n id) (- m n))
+                 m))
         ;(print encoded-list)
         (f 1 tree)))
     ; padding for range-check-less indexing
