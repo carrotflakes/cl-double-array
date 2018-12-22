@@ -57,24 +57,14 @@
   `(unsigned-byte ,*array-element-type-unsigned-byte*))
 
 (defstruct double-array
-  (dictionary (make-dictionary))
-  (base (make-array 2
-                    :element-type (element-type)
-                    :initial-element 0
-                    :adjustable t
-                    :fill-pointer 0))
-  (check (make-array 2
-                     :element-type (element-type)
-                     :initial-element 0
-                     :adjustable t
-                     :fill-pointer 0)))
-
-(defvar *buffer-increment-step* 128)
+  dictionary
+  base
+  check)
 
 (declaim (inline set-value))
 (defun set-value (array i element)
   (unless (< i (array-total-size array))
-    (adjust-array array (+ i *buffer-increment-step*)))
+    (adjust-array array (expt 2 (1+ (floor (log i 2))))))
   (setf (aref array i) element))
 
 (declaim (inline get-value))
@@ -97,22 +87,27 @@
       (setf (cdr node) (lists-to-tree (cdr node))))
     (nreverse tree)))
 
+(defun make-vector (element-type)
+  (make-array 2
+              :element-type element-type
+              :initial-element 0
+              :adjustable t
+              :fill-pointer 0))
+
+(defun vector-last-index (vector)
+  (loop
+    with n = (array-total-size vector)
+    for element = (aref vector (decf n))
+    unless (zerop element)
+    return n))
+
 (defun build-double-array (string-list)
   (declare (optimize (speed 3) (space 0) (safety 0)))
-  (let* ((double-array (make-double-array))
-         (dictionary (double-array-dictionary double-array))
-         (base (double-array-base double-array))
-         (check (double-array-check double-array))
-         (used (make-array 2
-                           :element-type `bit
-                           :initial-element 0
-                           :adjustable t
-                           :fill-pointer 0))
-         (skip (make-array 2
-                           :element-type (element-type)
-                           :initial-element 0
-                           :adjustable t
-                           :fill-pointer 0))
+  (let* ((dictionary (make-dictionary))
+         (base (make-vector (element-type)))
+         (check (make-vector (element-type)))
+         (used (make-vector 'bit))
+         (skip (make-vector (element-type)))
          (string-list (sort (copy-list string-list) #'string<)))
     (initialize-dictionary dictionary)
     (dolist (string string-list)
@@ -152,15 +147,22 @@
                  m))
         ;(print encoded-list)
         (f 1 tree)))
+    (setf (fill-pointer base) (1+ (vector-last-index base)))
     ; padding for range-check-less indexing
-    (adjust-array check
-                  (+ (array-total-size check)
-                     (dictionary-size dictionary))) ; FIXME: can be shrink?
-    (setf (fill-pointer base) (array-total-size base)
-          (fill-pointer check) (array-total-size check))
+    (let ((check-size (+ (vector-last-index check)
+                         (dictionary-size dictionary)
+                         1)))
+      (adjust-array check check-size)
+      (setf (fill-pointer check) check-size))
     ;(print base)
     ;(print check)(terpri)
-    double-array))
+    (make-double-array :dictionary dictionary
+                       :base (make-array (fill-pointer base)
+                                         :element-type (element-type)
+                                         :initial-contents base)
+                       :check (make-array (fill-pointer check)
+                                         :element-type (element-type)
+                                         :initial-contents check))))
 
 (defmacro do-common-prefix-search
     ((double-array string &key (start 0) end node subseq i) &body body)
