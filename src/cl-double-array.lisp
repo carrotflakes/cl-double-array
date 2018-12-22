@@ -6,6 +6,7 @@
            :build-double-array
            :do-common-prefix-search
            :common-prefix-search
+           :do-complete
            :complete))
 (in-package :cl-double-array)
 
@@ -202,33 +203,82 @@
 
 ; common-prefix-search-all
 
-(defun complete (double-array string &optional (start 0) end)
+(defun progress (double-array string &key (start 0) end)
   (let* ((dictionary (double-array-dictionary double-array))
          (base (double-array-base double-array))
          (check (double-array-check double-array))
-         (n 1)
          (dictionary-size (dictionary-size dictionary)))
     (loop
+      with n = 1
       until (zerop n)
       for i from start below (or end (length string))
       for id = (or (encode-char dictionary (char string i))
-                   (return-from complete '()))
+                   (return))
       for m = (+ n id)
       unless (= n (aref check m))
-      do (return-from complete '())
-      do (setf n (aref base m)))
-    (labels ((f (n)
-               (nconc (when (= n (aref check n))
-                        (list (list)))
-                      (loop
-                        for i from 1 below dictionary-size
-                        for m = (+ n i)
-                        when (= n (aref check m))
-                        append (loop
-                                 with char = (decode-char dictionary i)
-                                 for x in (f (aref base m))
-                                 collect (cons char x))))))
-      (loop
-        with prefix = (subseq string start end)
-        for chars in (f n)
-        collect (format nil "~a~{~a~}" prefix chars)))))
+      do (return)
+      do (setf n (aref base m))
+      finally (return n))))
+
+(defmacro do-complete
+    ((double-array string &key (start 0) end node completed) &body body)
+  (let* ((double-array-sym (gensym "DOUBLE-ARRAY"))
+         (string-sym (gensym "STRING"))
+         (start-sym (gensym "START"))
+         (end-sym (gensym "END"))
+         (body
+           (if completed
+               `(labels
+                    ((f (n)
+                       (nconc (when (= n (aref check n))
+                                (list (list n)))
+                              (loop
+                                for i from 1 below dictionary-size
+                                for m = (+ n i)
+                                when (= n (aref check m))
+                                append (loop
+                                       with char = (decode-char dictionary i)
+                                         for x in (f (aref base m))
+                                         collect (cons char x))))))
+                  (loop
+                    with prefix = (subseq ,string-sym ,start-sym ,end-sym)
+                    for result in (f n)
+                       ,@(if node
+                             `(for ,node = (car (last result)))
+                             '())
+                    do (setf result (nbutlast result))
+                       (let ((,completed (format nil "~a~{~a~}" prefix result)))
+                         ,@body)))
+               `(labels
+                    ((f (n)
+                       (when (= n (aref check n))
+                         ,@(if node
+                               `((let ((,node n))
+                                   ,@body))
+                               body))
+                       (loop
+                         for i from 1 below dictionary-size
+                         for m = (+ n i)
+                         when (= n (aref check m))
+                         do (f (aref base m)))))
+                  (f n)))))
+    `(let* ((,double-array-sym ,double-array)
+            (,string-sym ,string)
+            (,start-sym ,start)
+            (,end-sym ,end)
+            (dictionary (double-array-dictionary ,double-array-sym))
+            (base (double-array-base ,double-array-sym))
+            (check (double-array-check ,double-array-sym))
+            (dictionary-size (dictionary-size dictionary))
+            (n (progress ,double-array-sym
+                         ,string-sym
+                         :start ,start-sym
+                         :end ,end-sym)))
+       (when n
+         ,body))))
+
+(defun complete (double-array string &optional (start 0) end)
+  (let ((completed-list '()))
+    (do-complete (double-array string :start start :end end :completed completed)
+      (push completed completed-list))
+    completed-list))
