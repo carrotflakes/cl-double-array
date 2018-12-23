@@ -85,8 +85,8 @@
         (t
          (push `(,(car list) ,(cdr list)) tree))))
     (dolist (node tree)
-      (setf (cdr node) (lists-to-tree (cdr node))))
-    (nreverse tree)))
+      (setf (cdr node) (lists-to-tree (nreverse (cdr node)))))
+    tree))
 
 (defun make-vector (element-type)
   (make-array 2
@@ -102,7 +102,7 @@
     unless (zerop element)
     return n))
 
-(defun build-double-array (string-list)
+(defun build-double-array (string-list &key complete-hook)
   (declare (optimize (speed 3) (space 0) (safety 0)))
   (let* ((dictionary (make-dictionary))
          (base (make-vector (element-type)))
@@ -116,9 +116,11 @@
     (let* ((encoded-list (loop
                            for string in string-list
                            collect (encode dictionary string)))
-           (tree (lists-to-tree encoded-list)))
+           (tree (lists-to-tree (nreverse encoded-list))))
       (labels ((f (n tree)
                  (unless tree
+                   (when complete-hook
+                     (funcall complete-hook n (pop string-list)))
                    (return-from f))
                  (let ((m (loop
                             with first-id = (caar tree)
